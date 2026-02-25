@@ -1,5 +1,6 @@
 # Ignore the local vector database (it gets huge)
 sovereign_executive/chroma_db/
+sovereign_executive/knowledge_base/
 
 # Ignore the actual LLM engine files
 sovereign_executive/models/*.llamafile
@@ -12,3 +13,4 @@ __pycache__/
 *.llamafile
 *.gguf
 *.bin
+*.log
