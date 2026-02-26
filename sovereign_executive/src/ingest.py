@@ -20,7 +20,7 @@ def build_memory():
         print(f"Error loading files: {e}")
         return
 
-    print(f"📄 Found {len(documents)} documents in your Knowledge Base.")
+    print(f"Found {len(documents)} documents in your Knowledge Base.")
 
     # 3. Chunking
     # We break documents into 500-character pieces so the AI can find specific facts
