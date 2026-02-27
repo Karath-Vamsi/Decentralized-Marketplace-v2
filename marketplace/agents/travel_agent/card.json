@@ -1,0 +1,15 @@
+{
+  "agent_id": "travel-01",
+  "name": "SkyBound Navigator",
+  "developer": "AISAAS Travel Group",
+  "description": "Specialist in searching flight availability, comparing prices, and executing bookings via GDS APIs.",
+  "category": "travel",
+  "tags": ["flights", "booking", "travel-planning"],
+  "pricing": { "base_fee_eth": "0.005", "fee_type": "per_booking" },
+  "input_schema": {
+    "origin": "string",
+    "destination": "string",
+    "date": "YYYY-MM-DD"
+  },
+  "endpoint": "http://127.0.0.1:8002/process"
+}
