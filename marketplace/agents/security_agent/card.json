@@ -1,0 +1,11 @@
+{
+  "agent_id": "security-01",
+  "name": "Sentinel-Audit",
+  "developer": "CyberSafe DAO",
+  "description": "Performs deep static analysis and vulnerability scanning on smart contracts and Python code.",
+  "category": "security",
+  "tags": ["audit", "vulnerability-scan", "solidity"],
+  "pricing": { "base_fee_eth": "0.008", "fee_type": "per_scan" },
+  "input_schema": { "code_to_audit": "string", "strict_mode": "boolean" },
+  "endpoint": "http://127.0.0.1:8003/process"
+}
