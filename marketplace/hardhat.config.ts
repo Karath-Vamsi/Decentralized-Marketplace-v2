@@ -1,8 +1,13 @@
-import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 import { configVariable, defineConfig } from "hardhat/config";
+import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import * as dotenv from "dotenv";
+
+dotenv.config({ path: "../.env" });
 
 export default defineConfig({
+  // Use the plugin you already have in your package.json
   plugins: [hardhatToolboxMochaEthersPlugin],
+  
   solidity: {
     profiles: {
       default: {
@@ -11,15 +16,16 @@ export default defineConfig({
       production: {
         version: "0.8.28",
         settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
+          optimizer: { enabled: true, runs: 200 },
         },
       },
     },
   },
   networks: {
+    localhost: {
+      type: "http",
+      url: "http://127.0.0.1:8545",
+    },
     hardhatMainnet: {
       type: "edr-simulated",
       chainType: "l1",
