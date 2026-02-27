@@ -21,3 +21,6 @@ __pycache__/
 node_modules/
 artifacts/
 cache/
+
+
+prompts.txt
