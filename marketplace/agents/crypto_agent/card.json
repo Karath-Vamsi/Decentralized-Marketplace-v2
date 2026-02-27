@@ -1,0 +1,11 @@
+{
+  "agent_id": "crypto-01",
+  "name": "Vault-Guard Crypto",
+  "developer": "Privacy Labs",
+  "description": "Provides specialized cryptographic services including SHA-256 hashing and secure data encryption strings.",
+  "category": "utility",
+  "tags": ["cryptography", "hashing", "security"],
+  "pricing": { "base_fee_eth": "0.003", "fee_type": "per_op" },
+  "input_schema": { "data_string": "string", "operation": "string" },
+  "endpoint": "http://127.0.0.1:8004/process"
+}
