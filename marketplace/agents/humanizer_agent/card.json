@@ -1,0 +1,23 @@
+{
+  "agent_id": "humanizer-01",
+  "name": "GhostWriter Pro",
+  "developer": "AISAAS Labs",
+  "description": "Transforms robotic or AI-generated text into natural, high-agency human prose.",
+  "category": "writing",
+  "tags": ["humanizer", "editing", "creative-writing"],
+  "pricing": {
+    "base_fee_eth": "0.001",
+    "fee_type": "flat_per_request"
+  },
+  "input_schema": {
+    "text": "string",
+    "tone": "string (professional, casual, or witty)",
+    "intensity": "number (1-10)"
+  },
+  "privacy_policy": {
+    "retention": "0_days",
+    "encryption": "TLS_1.3",
+    "usage": "No training data collection"
+  },
+  "endpoint": "http://127.0.0.1:8001/process"
+}
