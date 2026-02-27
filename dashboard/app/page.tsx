@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { injected } from 'wagmi/connectors'
+import Link from 'next/link';
 
 export default function Dashboard() {
   const { address, isConnected } = useAccount()
@@ -57,7 +58,7 @@ export default function Dashboard() {
       if (res.ok) {
         alert("Evolution Successful!");
         setIdentityText(''); setDocTitle(''); setDocContent('');
-        fetchKnowledgeList(); // Refresh the list automatically
+        fetchKnowledgeList(); 
       }
     } catch { alert("Evolution failed.") }
     finally { setIsEvolving(false) }
@@ -80,7 +81,22 @@ export default function Dashboard() {
         
         {/* HEADER */}
         <header className="flex justify-between items-center border-b border-slate-800 pb-8">
-          <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">AISAAS 2.0</h1>
+          <div className="flex items-center gap-8">
+            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+              AISAAS 2.0
+            </h1>
+            
+            {/* Navigation Links */}
+            <nav className="hidden md:flex gap-4">
+              <Link href="/" className="text-sm font-bold text-slate-300 hover:text-white transition-colors">
+                Twin Terminal
+              </Link>
+              <Link href="/marketplaceUI" className="text-sm font-bold text-slate-500 hover:text-emerald-400 transition-colors">
+                Marketplace
+              </Link>
+            </nav>
+          </div>
+
           {!isConnected ? (
             <button onClick={() => connect({ connector: injected() })} className="px-6 py-2 bg-blue-600 rounded-full font-bold">Connect Wallet</button>
           ) : (
@@ -98,8 +114,9 @@ export default function Dashboard() {
             <section className="space-y-6">
               <h2 className="text-xl font-bold text-blue-400 uppercase tracking-widest">Digital Twin Terminal</h2>
               <div className={`p-6 rounded-2xl border min-h-[300px] ${isLoading ? 'bg-slate-900 animate-pulse border-blue-500/50' : 'bg-slate-900 border-slate-800'}`}>
-                <div className="prose prose-invert max-w-none">
-                  {isLoading ? "Consulting knowledge base..." : chatResponse || "Awaiting command..."}
+                {/* 👇 THIS IS THE FIX FOR THE TEXT OVERFLOW 👇 */}
+                <div className="prose prose-invert max-w-none break-words whitespace-pre-wrap text-sm text-slate-300">
+                  {isLoading ? "Consulting knowledge base & executing routing protocol..." : chatResponse || "Awaiting command..."}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -120,7 +137,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Memory Bank List (Conditionally shown) */}
+              {/* Memory Bank List */}
               {viewingKB && (
                 <div className="bg-slate-950 border border-emerald-500/30 p-4 rounded-xl space-y-2">
                   <div className="flex justify-between items-center mb-2">
