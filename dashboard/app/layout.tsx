@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// This imports the provider you just created in the /providers folder
+
 import { Web3Provider } from "@/providers/Web3Provider";
 
 const geistSans = Geist({
@@ -29,7 +29,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* We wrap 'children' (your pages) in the Web3Provider */}
         <Web3Provider>
           {children}
         </Web3Provider>
