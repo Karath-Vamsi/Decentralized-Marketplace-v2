@@ -20,7 +20,7 @@ def build_memory():
     print(f" Looking for files in: {KB_DIR}")
 
     # Load Knowledge Base
-    # Note: We point to KB_DIR which contains identity.txt and the /documents folder
+    # Note: We are pointing to KB_DIR which contains identity.txt and the /documents folder
     loader = DirectoryLoader(KB_DIR, glob="./**/*.txt", loader_cls=TextLoader)
     try:
         documents = loader.load()
@@ -42,7 +42,7 @@ def build_memory():
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
     # Create and Persist
-    # This will update the DB located in /sovereign_executive/chroma_db
+    # Updating the DB located in /sovereign_executive/chroma_db
     vectorstore = Chroma.from_documents(
         documents=texts, 
         embedding=embeddings, 
