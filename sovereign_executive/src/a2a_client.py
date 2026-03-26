@@ -13,13 +13,11 @@ def call_specialist_agent(agent_card, payload):
     print(f" Endpoint: {endpoint}")
 
     try:
-        # We use the 'input_schema' logic from the card to ensure 
-        # we are sending exactly what the agent wants.
         response = requests.post(
             endpoint,
             json=payload,
             headers={"Content-Type": "application/json"},
-            timeout=180
+            timeout=600
         )
         
         if response.status_code == 200:
