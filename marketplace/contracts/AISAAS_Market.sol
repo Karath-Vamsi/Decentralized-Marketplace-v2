@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AISAAS_Market is Ownable {
     
+    // --- Data Structures ---
+
     struct Agent {
         address developer;      // Who built it
         string name;           // Agent name
@@ -14,16 +16,35 @@ contract AISAAS_Market is Ownable {
         bool isActive;         // Status
     }
 
-    // Mapping of Agent ID (incremental) to Agent details
+    enum JobStatus { Locked, Released, Refunded }
+
+    struct Job {
+        uint256 id;
+        address executive;
+        address worker;
+        uint256 amount;
+        JobStatus status;
+    }
+
+    // --- State Variables ---
+
     mapping(uint256 => Agent) public registry;
     uint256 public totalAgents;
 
+    mapping(uint256 => Job) public jobs;
+    uint256 public totalJobs;
+
+    // --- Events ---
+
     event AgentRegistered(uint256 indexed agentId, string name, string category);
     event AgentUpdated(uint256 indexed agentId, bool isActive);
+    event JobCreated(uint256 indexed jobId, address indexed executive, address indexed worker, uint256 amount);
+    event PaymentReleased(uint256 indexed jobId);
 
     constructor() Ownable(msg.sender) {}
 
-    // 1. Register a new Specialist Agent
+    // --- Agent Management Functions ---
+
     function registerAgent(
         string memory _name,
         string memory _category,
@@ -43,14 +64,12 @@ contract AISAAS_Market is Ownable {
         emit AgentRegistered(totalAgents, _name, _category);
     }
 
-    // 2. Update Agent Status (for developers to pause their service)
     function toggleAgentStatus(uint256 _agentId) public {
         require(registry[_agentId].developer == msg.sender, "Only developer can edit");
         registry[_agentId].isActive = !registry[_agentId].isActive;
         emit AgentUpdated(_agentId, registry[_agentId].isActive);
     }
 
-    // 3. Get all active agents in a specific category
     function getAgentsByCategory(string memory _category) public view returns (uint256[] memory) {
         uint256 count = 0;
         for (uint256 i = 1; i <= totalAgents; i++) {
@@ -68,5 +87,42 @@ contract AISAAS_Market is Ownable {
             }
         }
         return result;
+    }
+
+    // --- Phase 4: Escrow & Payment Functions ---
+
+    // 1. Executive locks funds here
+    function createJob(uint256 _agentId) public payable returns (uint256) {
+        Agent storage agent = registry[_agentId];
+        require(agent.isActive, "Agent not active");
+        require(msg.value >= agent.baseFee, "Insufficient payment");
+
+        totalJobs++;
+        jobs[totalJobs] = Job({
+            id: totalJobs,
+            executive: msg.sender,
+            worker: agent.developer,
+            amount: msg.value,
+            status: JobStatus.Locked
+        });
+
+        emit JobCreated(totalJobs, msg.sender, agent.developer, msg.value);
+        return totalJobs;
+    }
+
+    // 2. User releases payment from Dashboard
+    function releasePayment(uint256 _jobId) public {
+        Job storage job = jobs[_jobId];
+        require(job.status == JobStatus.Locked, "Job not in locked state");
+        // Ensure only the executive/owner of the job can release it
+        require(msg.sender == job.executive, "Only Executive can release");
+
+        job.status = JobStatus.Released;
+        
+        // Transfer the locked ETH to the worker
+        (bool success, ) = payable(job.worker).call{value: job.amount}("");
+        require(success, "Transfer failed");
+
+        emit PaymentReleased(_jobId);
     }
 }
