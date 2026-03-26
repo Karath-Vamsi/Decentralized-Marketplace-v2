@@ -1,46 +1,57 @@
 import os
-from fastapi import FastAPI, HTTPException
+import json
+from pathlib import Path
+from dotenv import load_dotenv
+from fastapi import FastAPI
 from pydantic import BaseModel
-from openai import OpenAI
-from fastapi.middleware.cors import CORSMiddleware
+from web3 import Web3
 
-app = FastAPI(title="GhostWriter Pro - Humanizer Agent")
+# --- Setup Paths & Env ---
+AGENT_DIR = Path(__file__).resolve().parent
+MARKETPLACE_DIR = AGENT_DIR.parent.parent
+ROOT_DIR = MARKETPLACE_DIR.parent
+load_dotenv(ROOT_DIR / ".env")
 
-# Allow requests from your Twin's server and the Dashboard
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# --- Blockchain Setup ---
+RPC_URL = os.getenv("RPC_URL", "http://127.0.0.1:8545")
+MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
 
-# Point to your local Llamafile
-LLM_URL = "http://127.0.0.1:8081/v1" 
-client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
+ABI_PATH = MARKETPLACE_DIR / "artifacts" / "contracts" / "AISAAS_Market.sol" / "AISAAS_Market.json"
+with open(ABI_PATH) as f:
+    market_abi = json.load(f)["abi"]
 
-class HumanizeRequest(BaseModel):
+market_contract = w3.eth.contract(address=w3.to_checksum_address(MARKET_ADDR), abi=market_abi)
+
+app = FastAPI(title="GhostWriter Humanizer (Phase 4 Enabled)")
+
+class HumanizerRequest(BaseModel):
     text: str
-    tone: str = "professional"
-    intensity: int = 5
+    tone: str
+    intensity: int
+    job_id: int # Required for payment verification
 
 @app.post("/process")
-async def process_text(request: HumanizeRequest):
-    print(f" Received request to humanize text (Tone: {request.tone})")
+async def process_humanizer(request: HumanizerRequest):
+    print(f" Checking Payment for Job #{request.job_id}...")
     
-    system_prompt = (
-        f"You are a 'GhostWriter Pro', a specialist agent in the AISAAS marketplace. "
-        f"Your sole task is to rewrite the provided text to sound more human, high-agency, and engaging. "
-        f"Target Tone: {request.tone}. Intensity Level: {request.intensity}/10. "
-        "Do not include any conversational filler. Just return the rewritten text."
-    )
-
     try:
-        response = client.chat.completions.create(
-            model="local-model",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": request.text}
-            ],
-            temperature=0.8 # Higher temperature for more creative/human output
-        )
-        return {"rewritten_text": response.choices[0].message.content, "status": "success"}
+        job_data = market_contract.functions.jobs(request.job_id).call()
+        if job_data[4] != 0: # 0 = Locked
+            return {"status": "PAYMENT_REQUIRED", "message": "No locked escrow found."}
+        
+        print(f" ✅ Verified. Humanizing text with {request.tone} tone...")
+        
+        # Mock Humanization Logic
+        rewritten = f"[HUMANIZED - {request.tone.upper()}]: {request.text}"
+        
+        return {
+            "status": "SUCCESS",
+            "rewritten_text": rewritten,
+            "job_id": request.job_id
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"status": "ERROR", "message": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

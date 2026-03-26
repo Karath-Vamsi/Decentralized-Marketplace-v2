@@ -48,7 +48,6 @@ def register():
             'chainId': 31337 # Standard Hardhat Chain ID
         }
 
-        # Use the contract function directly
         func = market_contract.functions.registerAgent(
             "GhostWriter Pro",
             "writing",
@@ -56,13 +55,13 @@ def register():
             w3.to_wei(0.001, 'ether')
         )
 
-        # Build it
+        # Building it
         raw_tx = func.build_transaction(tx_params)
 
-        # Sign it
+        # Signing it
         signed_tx = w3.eth.account.sign_transaction(raw_tx, DEV_PRIVATE_KEY)
         
-        # Send it
+        # Sending it
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         print(f" Transaction sent! Hash: {tx_hash.hex()}")
         
