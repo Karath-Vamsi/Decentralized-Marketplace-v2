@@ -14,7 +14,7 @@ async function main() {
 
   // 1. Get the signer (Account #0)
   const [deployer] = await ethers.getSigners();
-  console.log("📦 Deploying with account:", deployer.address);
+  console.log(" Deploying with account:", deployer.address);
 
   // 2. Get the Contract Factory
   const Market = await ethers.getContractFactory("AISAAS_Market");
