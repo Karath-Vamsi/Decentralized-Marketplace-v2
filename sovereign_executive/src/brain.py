@@ -1,6 +1,6 @@
 import openai
 
-# We point the OpenAI client to our local Llamafile instead of the cloud
+
 client = openai.OpenAI(
     base_url="http://localhost:8081/v1", 
     api_key="sk-no-key-required" # A placeholder is required but ignored
@@ -9,7 +9,7 @@ client = openai.OpenAI(
 def chat_with_twin(prompt):
     try:
         response = client.chat.completions.create(
-            model="local-model", # Name doesn't matter to Llamafile
+            model="local-model", 
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
