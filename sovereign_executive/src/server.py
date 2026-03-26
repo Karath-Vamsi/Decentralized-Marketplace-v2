@@ -1,7 +1,7 @@
 import os
 import json
-import time # <--- Added
-import random # <--- Added
+import time 
+import random 
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -17,27 +17,43 @@ from navigator import select_best_agent, format_specialist_input, get_all_regist
 from a2a_client import call_specialist_agent
 from ingest import build_memory
 
+# --- Path Configurations ---
 SRC_DIR = Path(__file__).resolve().parent
 BASE_DIR = SRC_DIR.parent
 ROOT_DIR = BASE_DIR.parent
 
 load_dotenv(dotenv_path=ROOT_DIR / ".env")
 DB_DIR = str(BASE_DIR / "chroma_db")
-ABI_PATH = ROOT_DIR / "marketplace" / "artifacts" / "contracts" / "ExecutiveNFT.sol" / "ExecutiveNFT.json"
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+# --- Environment Variables ---
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")       # Executive NFT
+MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")         # AISAAS Marketplace
+USER_KEY = os.getenv("USER_PRIVATE_KEY")               # Wallet PK
+USER_WALLET = os.getenv("USER_WALLET_ADDRESS")         # Wallet Address
 RPC_URL = os.getenv("RPC_URL") 
 LLM_URL = "http://127.0.0.1:8090/v1" 
 
+# --- Blockchain Setup ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
-with open(ABI_PATH) as f:
-    abi = json.load(f)["abi"]
-contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=abi)
 
+# Load Executive NFT Contract (For Auth)
+NFT_ABI_PATH = ROOT_DIR / "marketplace" / "artifacts" / "contracts" / "ExecutiveNFT.sol" / "ExecutiveNFT.json"
+with open(NFT_ABI_PATH) as f:
+    nft_abi = json.load(f)["abi"]
+nft_contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=nft_abi)
+
+# Load Marketplace Contract (For Phase 4 Payments)
+MARKET_ABI_PATH = ROOT_DIR / "marketplace" / "artifacts" / "contracts" / "AISAAS_Market.sol" / "AISAAS_Market.json"
+with open(MARKET_ABI_PATH) as f:
+    market_abi = json.load(f)["abi"]
+market_contract = w3.eth.contract(address=MARKET_ADDR, abi=market_abi)
+
+# --- AI Setup ---
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 vector_db = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
 client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
 
+# --- FastAPI Initialization ---
 app = FastAPI(title="AISAAS Sovereign Executive")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -54,10 +70,11 @@ class KnowledgeUpdate(BaseModel):
     content: str
     wallet_address: str
 
+# --- Helper Functions ---
 def is_authorized(user_wallet_address: str):
     try:
         addr = w3.to_checksum_address(user_wallet_address)
-        return contract.functions.hasActiveTwin(addr).call()
+        return nft_contract.functions.hasActiveTwin(addr).call()
     except: 
         return False
 
@@ -65,6 +82,8 @@ def refresh_vector_db():
     global vector_db
     build_memory()
     vector_db = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
+
+# --- Endpoints ---
 
 @app.post("/ask")
 async def ask_twin(request: QueryRequest):
@@ -75,14 +94,42 @@ async def ask_twin(request: QueryRequest):
     specialist = select_best_agent(request.prompt)
 
     if specialist:
-        print(f" Specialist Found: {specialist['name']}. Delegating task...")
+        print(f" Specialist Found: {specialist['name']}. Initiating Phase 4 Payment...")
         
-        #  THE DRAMATIC PAUSE
-        sleep_time = random.uniform(1.5, 3.0)
-        print(f" Simulating A2A Handshake Protocol... ({sleep_time:.1f}s delay)")
+        # 1. --- NEW PAYMENT LOGIC (ESCROW LOCK) ---
+        try:
+            print(f" 💰 Locking {specialist['fee_wei']} Wei for {specialist['name']}...")
+            
+            nonce = w3.eth.get_transaction_count(USER_WALLET)
+            tx = market_contract.functions.createJob(specialist['id']).build_transaction({
+                'from': USER_WALLET,
+                'value': int(specialist['fee_wei']),
+                'gas': 300000,
+                'gasPrice': w3.to_wei('20', 'gwei'),
+                'nonce': nonce,
+            })
+            
+            signed_tx = w3.eth.account.sign_transaction(tx, private_key=USER_KEY)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+            
+            # Extract JobID from the 'JobCreated' event in the receipt
+            logs = market_contract.events.JobCreated().process_receipt(receipt)
+            job_id = logs[0]['args']['jobId']
+            print(f" ✅ Job #{job_id} Locked on-chain. Notifying Worker...")
+        
+        except Exception as e:
+            print(f" ❌ Blockchain Payment Failed: {e}")
+            raise HTTPException(status_code=500, detail="Escrow creation failed.")
+
+        # 2. --- A2A HANDSHAKE ---
+        sleep_time = random.uniform(2.0, 4.0) # Reduced delay since BC transaction takes time
+        print(f" Simulating A2A Handshake Protocol... ({sleep_time:.1f}s additional delay)")
         time.sleep(sleep_time)
         
-        payload = format_specialist_input(request.prompt, specialist['card'])
+        payload = format_specialist_input(request.prompt, specialist['card'], request.wallet_address)
+        payload['job_id'] = job_id  # Pass the JobID so the worker can verify payment
+        
         worker_result = call_specialist_agent(specialist['card'], payload)
         
         if worker_result:
@@ -96,10 +143,13 @@ async def ask_twin(request: QueryRequest):
             return {
                 "answer": final_answer,
                 "source": f"VERIFIED: {specialist['name']}",
+                "job_id": job_id,
+                "status": "PAYMENT_PENDING_APPROVAL",
                 "data": worker_result,
                 "authorized_wallet": request.wallet_address
             }
-        
+    
+    # --- Fallback to Internal RAG if no specialist found ---
     print(" No specialist used. Consulting internal RAG memory...")
     docs = vector_db.similarity_search(request.prompt, k=3)
     context = "\n---\n".join([doc.page_content for doc in docs])
@@ -155,7 +205,6 @@ async def list_knowledge():
     
 @app.get("/agents")
 async def list_marketplace_agents():
-    """Fetches the live directory of active agents from the blockchain."""
     try:
         agents = get_all_registered_agents()
         return {"agents": agents}
