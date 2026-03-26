@@ -59,22 +59,24 @@ def select_best_agent(user_query: str):
 
     q = user_query.lower()
 
-    #  THE GUARD (Bypasses LLM Refusals)
-    if any(word in q for word in ["hash", "sha-256", "crypto", "encrypt"]):
-        print(" Keyword Match: Routing to Vault-Guard Crypto")
-        # Find the crypto agent dynamically just in case IDs shift
+    # --- UPDATED: Vault-Guard Financial Keywords ---
+    if any(word in q for word in ["balance", "price", "eth", "gas", "market", "wallet", "hash", "crypto"]):
+        print(" 🎯 Keyword Match: Routing to Vault-Guard Crypto (Financial Intel)")
         for a in agents: 
-            if "Vault" in a['name']: return a
+            if "Vault" in a['name']: 
+                return a
 
     if any(word in q for word in ["audit", "security", "vulnerability", "scan"]):
-        print(" Keyword Match: Routing to Sentinel-Audit")
+        print(" 🎯 Keyword Match: Routing to Sentinel-Audit")
         for a in agents: 
-            if "Sentinel" in a['name']: return a
+            if "Sentinel" in a['name']: 
+                return a
 
     if any(word in q for word in ["flight", "book", "travel", "ticket"]):
-        print(" Keyword Match: Routing to SkyBound Navigator")
+        print(" 🎯 Keyword Match: Routing to SkyBound Navigator")
         for a in agents: 
-            if "SkyBound" in a['name']: return a
+            if "SkyBound" in a['name']: 
+                return a
 
     # --- Fallback to LLM for complex stuff ---
     staff_directory = ""
@@ -109,18 +111,39 @@ def select_best_agent(user_query: str):
     
     return None
 
-def format_specialist_input(user_query: str, agent_card: dict):
+def format_specialist_input(user_query: str, agent_card: dict, user_wallet: str = None):
     name = agent_card.get('name', '')
     
     #  SPECIAL CASE 1: Sentinel-Audit
     if "Sentinel" in name:
         return {"code_to_audit": user_query, "strict_mode": True}
 
-    #  SPECIAL CASE 2: Vault-Guard
+    # SPECIAL CASE 2: Vault-Guard (Updated for Multi-Intent)
     if "Vault-Guard" in name:
-        strings = re.findall(r"'(.*?)'|\"(.*?)\"", user_query)
-        data_to_hash = strings[0][0] or strings[0][1] if strings else "AISAAS_DATA"
-        return {"data_string": data_to_hash, "operation": "hash"}
+        q = user_query.lower()
+        
+        # Check for multiple intents
+        wants_balance = any(word in q for word in ["balance", "wallet", "funds"])
+        wants_price = any(word in q for word in ["price", "market", "value", "cost of eth"])
+        wants_gas = any(word in q for word in ["gas", "fee"])
+
+        # Determine the operation mode
+        if wants_balance and wants_price:
+            operation = "all" # New multi-mode
+        elif wants_balance:
+            operation = "balance_check"
+        elif wants_gas:
+            operation = "gas_estimate"
+        else:
+            operation = "market_data"
+        
+        addr_match = re.search(r'0x[a-fA-F0-9]{40}', user_query)
+        account = addr_match.group() if addr_match else user_wallet
+        
+        return {
+            "account_to_analyze": account or "0x0000000000000000000000000000000000000000",
+            "operation": operation
+        }
     
     #  GENERAL CASE: LLM Extraction (Travel Agent, etc.)
     schema = agent_card.get("input_schema", {})
