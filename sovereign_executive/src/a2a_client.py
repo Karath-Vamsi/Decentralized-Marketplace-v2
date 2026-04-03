@@ -17,7 +17,7 @@ def call_specialist_agent(agent_card, payload):
             endpoint,
             json=payload,
             headers={"Content-Type": "application/json"},
-            timeout=600
+            timeout=3500
         )
         
         if response.status_code == 200:
@@ -33,7 +33,6 @@ def call_specialist_agent(agent_card, payload):
         return None
 
 if __name__ == "__main__":
-    # Mock data for testing the client standalone
     mock_card = {
         "name": "GhostWriter Pro",
         "endpoint": "http://127.0.0.1:8001/process"
