@@ -29,6 +29,9 @@ with open(ABI_PATH) as f:
 market_contract = w3.eth.contract(address=MARKET_ADDR, abi=market_abi)
 
 def get_all_registered_agents():
+    """
+    Fetches all active agents from the blockchain, including Phase 5 Reputation data.
+    """
     try:
         total_agents = market_contract.functions.totalAgents().call()
     except Exception as e:
@@ -38,57 +41,83 @@ def get_all_registered_agents():
     all_agents = []
     for i in range(1, total_agents + 1):
         details = market_contract.functions.registry(i).call()
-        if details[5]:  # isActive check
+        if details[5]:
             try:
+                total_stars = details[6]
+                jobs_done = details[7]
+                avg_rating = (total_stars / jobs_done) if jobs_done > 0 else 0
+                
                 with open(details[3], 'r') as f:
                     card_data = json.load(f)
+                    
                 all_agents.append({
                     "id": i,
                     "name": details[1],
+                    "category": details[2],
+                    "rating": avg_rating,
+                    "jobs_done": jobs_done,
                     "card": card_data,
                     "fee_wei": details[4]
                 })
-            except:
+            except Exception as e:
+                print(f" Error loading card for agent {i}: {e}")
                 continue
     return all_agents
 
 def select_best_agent(user_query: str):
+    """
+    Routes user query to the highest-rated specialist in the matching category.
+    Now optimized with 'Priority Routing' to prevent keyword collisions.
+    """
     agents = get_all_registered_agents()
     if not agents: 
         return None
 
     q = user_query.lower()
 
-    # --- UPDATED: Vault-Guard Financial Keywords ---
-    if any(word in q for word in ["balance", "price", "eth", "gas", "market", "wallet", "hash", "crypto"]):
-        print(" 🎯 Keyword Match: Routing to Vault-Guard Crypto (Financial Intel)")
-        for a in agents: 
-            if "Vault" in a['name']: 
-                return a
+    # --- REPUTATION-BASED SELECTION LOGIC ---
+    
+    def get_best_in_group(keyword_list, agent_identifier):
+        if any(word in q for word in keyword_list):
+            matched = [a for a in agents if agent_identifier in a['name']]
+            if matched:
+                sorted_group = sorted(matched, key=lambda x: (x['rating'], x['jobs_done']), reverse=True)
+                print(f" 🎯 Phase 5 Routing: Selected {sorted_group[0]['name']} (Rating: {sorted_group[0]['rating']})")
+                return sorted_group[0]
+        return None
 
-    if any(word in q for word in ["audit", "security", "vulnerability", "scan"]):
-        print(" 🎯 Keyword Match: Routing to Sentinel-Audit")
-        for a in agents: 
-            if "Sentinel" in a['name']: 
-                return a
+    # PRIORITY 1: Security Group (Specific Technical Intent)
+    sec_keywords = ["audit", "security", "vulnerability", "scan", "smart contract"]
+    best_sec = get_best_in_group(sec_keywords, "Sentinel")
+    if best_sec: 
+        return best_sec
 
-    if any(word in q for word in ["flight", "book", "travel", "ticket"]):
-        print(" 🎯 Keyword Match: Routing to SkyBound Navigator")
-        for a in agents: 
-            if "SkyBound" in a['name']: 
-                return a
+    # PRIORITY 2: Travel Group (Specific Lifestyle Intent)
+    travel_keywords = ["flight", "book", "travel", "ticket"]
+    best_travel = get_best_in_group(travel_keywords, "SkyBound")
+    if best_travel: return best_travel
 
-    # --- Fallback to LLM for complex stuff ---
+    # PRIORITY 3: Crypto Group (General Financial Intent)
+    crypto_keywords = ["check balance", "wallet funds", "eth price", "gas price", "crypto market"]
+    
+    legacy_crypto_keywords = ["price", "market", "wallet", "hash"]
+    
+    best_crypto = get_best_in_group(crypto_keywords + legacy_crypto_keywords, "Vault")
+    if best_crypto: 
+        return best_crypto
+
+    # --- Fallback to LLM for complex stuff (Includes Reputation context) ---
     staff_directory = ""
     for i, a in enumerate(agents):
-        staff_directory += f"AGENT_ID [{i}]: {a['name']} - Capability: {a['card']['description']}\n"
+        staff_directory += f"AGENT_ID [{i}]: {a['name']} - Rating: {a['rating']} Stars - Capability: {a['card']['description']}\n"
 
     system_prompt = (
-        "You are a ROUTING_GATEWAY. Output ONLY a single digit based on the directory below.\n"
+        "You are a ROUTING_GATEWAY for a decentralized marketplace.\n"
+        "Output ONLY a single digit (AGENT_ID) for the best-rated agent that fits the request.\n"
         f"### STAFF DIRECTORY:\n{staff_directory}\n"
         "RULES:\n"
-        "1. If request matches an agent capability, return ONLY its AGENT_ID number.\n"
-        "2. If request is about personal data, identity, or general chat, return 'NONE'."
+        "1. Prioritize agents with higher ratings if multiple match.\n"
+        "2. If no specialist fits, return 'NONE'."
     )
 
     try:
@@ -99,13 +128,10 @@ def select_best_agent(user_query: str):
             temperature=0.0 
         )
         raw_choice = response.choices[0].message.content.strip().lower()
-        
         match = re.search(r'\d+', raw_choice)
         if match:
             idx = int(match.group())
             if idx < len(agents): return agents[idx]
-        
-        print(f" Fallback to Internal. LLM Output: {raw_choice}")
     except Exception as e:
         print(f"Routing Error: {e}")
     
@@ -114,28 +140,18 @@ def select_best_agent(user_query: str):
 def format_specialist_input(user_query: str, agent_card: dict, user_wallet: str = None):
     name = agent_card.get('name', '')
     
-    #  SPECIAL CASE 1: Sentinel-Audit
+    # SPECIAL CASE 1: Sentinel-Audit
     if "Sentinel" in name:
         return {"code_to_audit": user_query, "strict_mode": True}
 
-    # SPECIAL CASE 2: Vault-Guard (Updated for Multi-Intent)
+    # SPECIAL CASE 2: Vault-Guard
     if "Vault-Guard" in name:
         q = user_query.lower()
-        
-        # Check for multiple intents
-        wants_balance = any(word in q for word in ["balance", "wallet", "funds"])
-        wants_price = any(word in q for word in ["price", "market", "value", "cost of eth"])
-        wants_gas = any(word in q for word in ["gas", "fee"])
-
-        # Determine the operation mode
-        if wants_balance and wants_price:
-            operation = "all" # New multi-mode
-        elif wants_balance:
+        operation = "market_data"
+        if any(word in q for word in ["balance", "wallet", "funds"]):
             operation = "balance_check"
-        elif wants_gas:
+        elif any(word in q for word in ["gas", "fee"]):
             operation = "gas_estimate"
-        else:
-            operation = "market_data"
         
         addr_match = re.search(r'0x[a-fA-F0-9]{40}', user_query)
         account = addr_match.group() if addr_match else user_wallet
@@ -145,7 +161,7 @@ def format_specialist_input(user_query: str, agent_card: dict, user_wallet: str 
             "operation": operation
         }
     
-    #  GENERAL CASE: LLM Extraction (Travel Agent, etc.)
+    # GENERAL CASE: LLM Extraction (Travel Agent, etc.)
     schema = agent_card.get("input_schema", {})
     keys = ", ".join(schema.keys())
 

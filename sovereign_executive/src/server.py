@@ -36,13 +36,13 @@ LLM_URL = "http://127.0.0.1:8090/v1"
 # --- Blockchain Setup ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 
-# Load Executive NFT Contract (For Auth)
+# Loading Executive NFT Contract (For Auth)
 NFT_ABI_PATH = ROOT_DIR / "marketplace" / "artifacts" / "contracts" / "ExecutiveNFT.sol" / "ExecutiveNFT.json"
 with open(NFT_ABI_PATH) as f:
     nft_abi = json.load(f)["abi"]
 nft_contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=nft_abi)
 
-# Load Marketplace Contract (For Phase 4 Payments)
+# Loading Marketplace Contract
 MARKET_ABI_PATH = ROOT_DIR / "marketplace" / "artifacts" / "contracts" / "AISAAS_Market.sol" / "AISAAS_Market.json"
 with open(MARKET_ABI_PATH) as f:
     market_abi = json.load(f)["abi"]
@@ -57,8 +57,15 @@ client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
 app = FastAPI(title="AISAAS Sovereign Executive")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# --- Models ---
+
 class QueryRequest(BaseModel):
     prompt: str
+    wallet_address: str
+
+class ReleaseRequest(BaseModel):
+    job_id: int
+    rating: int # 1 to 5
     wallet_address: str
 
 class IdentityUpdate(BaseModel):
@@ -96,9 +103,8 @@ async def ask_twin(request: QueryRequest):
     if specialist:
         print(f" Specialist Found: {specialist['name']}. Initiating Phase 4 Payment...")
         
-        # 1. --- NEW PAYMENT LOGIC (ESCROW LOCK) ---
         try:
-            print(f" 💰 Locking {specialist['fee_wei']} Wei for {specialist['name']}...")
+            print(f"Locking {specialist['fee_wei']} Wei for {specialist['name']}...")
             
             nonce = w3.eth.get_transaction_count(USER_WALLET)
             tx = market_contract.functions.createJob(specialist['id']).build_transaction({
@@ -113,22 +119,20 @@ async def ask_twin(request: QueryRequest):
             tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
             receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
             
-            # Extract JobID from the 'JobCreated' event in the receipt
             logs = market_contract.events.JobCreated().process_receipt(receipt)
             job_id = logs[0]['args']['jobId']
-            print(f" ✅ Job #{job_id} Locked on-chain. Notifying Worker...")
+            print(f"Job #{job_id} Locked on-chain. Notifying Worker...")
         
         except Exception as e:
-            print(f" ❌ Blockchain Payment Failed: {e}")
+            print(f"Blockchain Payment Failed: {e}")
             raise HTTPException(status_code=500, detail="Escrow creation failed.")
 
-        # 2. --- A2A HANDSHAKE ---
-        sleep_time = random.uniform(2.0, 4.0) # Reduced delay since BC transaction takes time
+        sleep_time = random.uniform(2.0, 4.0) 
         print(f" Simulating A2A Handshake Protocol... ({sleep_time:.1f}s additional delay)")
         time.sleep(sleep_time)
         
         payload = format_specialist_input(request.prompt, specialist['card'], request.wallet_address)
-        payload['job_id'] = job_id  # Pass the JobID so the worker can verify payment
+        payload['job_id'] = job_id  
         
         worker_result = call_specialist_agent(specialist['card'], payload)
         
@@ -149,7 +153,6 @@ async def ask_twin(request: QueryRequest):
                 "authorized_wallet": request.wallet_address
             }
     
-    # --- Fallback to Internal RAG if no specialist found ---
     print(" No specialist used. Consulting internal RAG memory...")
     docs = vector_db.similarity_search(request.prompt, k=3)
     context = "\n---\n".join([doc.page_content for doc in docs])
@@ -168,6 +171,38 @@ async def ask_twin(request: QueryRequest):
         "source": "Sovereign Executive (Internal RAG)",
         "authorized_wallet": request.wallet_address
     }
+
+@app.post("/release-payment")
+async def release_payment(request: ReleaseRequest):
+    """
+    Finalizes the job on-chain by releasing the escrowed funds and 
+    submitting a 1-5 star rating to update agent reputation.
+    """
+    if not is_authorized(request.wallet_address):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    try:
+        print(f" Submitting {request.rating}-star ⭐ rating for Job #{request.job_id}...")
+        
+        nonce = w3.eth.get_transaction_count(USER_WALLET)
+        tx = market_contract.functions.releasePaymentWithRating(
+            request.job_id, 
+            request.rating
+        ).build_transaction({
+            'from': USER_WALLET,
+            'gas': 300000,
+            'gasPrice': w3.to_wei('20', 'gwei'),
+            'nonce': nonce,
+        })
+
+        signed_tx = w3.eth.account.sign_transaction(tx, private_key=USER_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        w3.eth.wait_for_transaction_receipt(tx_hash)
+
+        return {"status": "SUCCESS", "message": "Funds released and reputation updated!"}
+    except Exception as e:
+        print(f"Release Failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/update-identity")
 async def update_identity(request: IdentityUpdate):
