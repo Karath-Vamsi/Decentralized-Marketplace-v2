@@ -14,12 +14,15 @@ contract AISAAS_Market is Ownable {
         string agentCardURI;   // Link to the JSON Agent Card (IPFS or URL)
         uint256 baseFee;       // Price in Wei
         bool isActive;         // Status
+        uint256 totalStars;    // Sum of all stars given
+        uint256 jobsCompleted; // Total number of ratings received
     }
 
     enum JobStatus { Locked, Released, Refunded }
 
     struct Job {
         uint256 id;
+        uint256 agentId;       // NEW: Directly links job to the specific Agent ID
         address executive;
         address worker;
         uint256 amount;
@@ -40,6 +43,7 @@ contract AISAAS_Market is Ownable {
     event AgentUpdated(uint256 indexed agentId, bool isActive);
     event JobCreated(uint256 indexed jobId, address indexed executive, address indexed worker, uint256 amount);
     event PaymentReleased(uint256 indexed jobId);
+    event ReputationUpdated(uint256 indexed agentId, uint256 newAverageRating, uint256 totalJobs);
 
     constructor() Ownable(msg.sender) {}
 
@@ -58,7 +62,9 @@ contract AISAAS_Market is Ownable {
             category: _category,
             agentCardURI: _cardURI,
             baseFee: _baseFee,
-            isActive: true
+            isActive: true,
+            totalStars: 0,
+            jobsCompleted: 0
         });
 
         emit AgentRegistered(totalAgents, _name, _category);
@@ -89,9 +95,9 @@ contract AISAAS_Market is Ownable {
         return result;
     }
 
-    // --- Phase 4: Escrow & Payment Functions ---
+    // --- Escrow & Reputation Functions ---
 
-    // 1. Executive locks funds here
+    // 1. Executive locks funds and creates an indexed job
     function createJob(uint256 _agentId) public payable returns (uint256) {
         Agent storage agent = registry[_agentId];
         require(agent.isActive, "Agent not active");
@@ -100,6 +106,7 @@ contract AISAAS_Market is Ownable {
         totalJobs++;
         jobs[totalJobs] = Job({
             id: totalJobs,
+            agentId: _agentId, // Storing Agent ID for accurate reputation
             executive: msg.sender,
             worker: agent.developer,
             amount: msg.value,
@@ -110,16 +117,37 @@ contract AISAAS_Market is Ownable {
         return totalJobs;
     }
 
-    // 2. User releases payment from Dashboard
+    // 2. Optimized: Direct credit to the specific Agent ID
+    function releasePaymentWithRating(uint256 _jobId, uint256 _rating) public {
+        Job storage job = jobs[_jobId];
+        require(job.status == JobStatus.Locked, "Job already settled");
+        require(msg.sender == job.executive, "Only Executive can release");
+        require(_rating >= 1 && _rating <= 5, "Rating must be 1-5");
+
+        // Targeted Reputation Update
+        uint256 targetId = job.agentId;
+        registry[targetId].totalStars += _rating;
+        registry[targetId].jobsCompleted += 1;
+        
+        // Scaled average (e.g. 4.5 is stored as 45)
+        uint256 avg = (registry[targetId].totalStars * 10) / registry[targetId].jobsCompleted; 
+        emit ReputationUpdated(targetId, avg, registry[targetId].jobsCompleted);
+
+        // Finalize Transaction
+        job.status = JobStatus.Released;
+        (bool success, ) = payable(job.worker).call{value: job.amount}("");
+        require(success, "Transfer failed");
+
+        emit PaymentReleased(_jobId);
+    }
+
+    // Fallback: Release without rating
     function releasePayment(uint256 _jobId) public {
         Job storage job = jobs[_jobId];
         require(job.status == JobStatus.Locked, "Job not in locked state");
-        // Ensure only the executive/owner of the job can release it
         require(msg.sender == job.executive, "Only Executive can release");
 
         job.status = JobStatus.Released;
-        
-        // Transfer the locked ETH to the worker
         (bool success, ) = payable(job.worker).call{value: job.amount}("");
         require(success, "Transfer failed");
 
