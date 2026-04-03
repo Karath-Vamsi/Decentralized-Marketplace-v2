@@ -1,26 +1,129 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
-@theme inline {
+@theme {
+  /* MASTER BRAND MAPPING - Use these in your components (e.g., bg-brand-bg) */
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-bg-light: var(--brand-bg-light);
+  --color-brand-bg-dark: var(--brand-bg-dark);
+  --color-brand-text: var(--brand-text);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-ash: var(--brand-ash);
+
+  --font-primary: var(--font-geist-sans);
+  --font-serif: var(--font-serif-premium);
+
+  /* Shadcn Utility Mapping */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* ============================================================
+     THE MASTER CONTROL PANEL (v4.0 - AISAAS Final)
+     Change these Hex codes to change the entire UI theme.
+     ============================================================ */
+  --brand-bg: #0D2B1D;       /* Deep Forest */
+  --brand-bg-light: #16422C; /* Luminous Highlight */
+  --brand-bg-dark: #05140D;  /* Deep Shadows */
+  --brand-text: #D6EDE6;     /* Frozen Water */
+  --brand-accent: #F7F5F2;   /* Parchment */
+  --brand-ash: #A3B8AE;      /* Ash Grey */
+
+  /* SHADCN LINKAGE - DO NOT CHANGE THESE MANUALLY, 
+     THEY ARE LINKED TO YOUR BRAND ABOVE */
+  --background: var(--brand-bg);
+  --foreground: var(--brand-text);
+  --card: #081e14;
+  --card-foreground: var(--brand-text);
+  --popover: #081e14;
+  --popover-foreground: var(--brand-text);
+  --primary: var(--brand-accent);
+  --primary-foreground: var(--brand-bg);
+  --secondary: var(--brand-bg-light);
+  --secondary-foreground: var(--brand-text);
+  --muted: var(--brand-bg-light);
+  --muted-foreground: var(--brand-ash);
+  --accent: var(--brand-bg-light);
+  --accent-foreground: var(--brand-accent);
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: rgba(214, 237, 230, 0.1);
+  --input: rgba(214, 237, 230, 0.1);
+  --ring: var(--brand-accent);
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-primary);
+    background: radial-gradient(
+      circle at 50% -20%, 
+      var(--brand-bg-light) 0%, 
+      var(--brand-bg) 75%
+    );
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* --- THE DESIGN SAUCE (UTILITY CLASSES) --- */
+
+.linear-grid {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: 
+    linear-gradient(to right, rgba(214, 237, 230, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(214, 237, 230, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  mask-image: radial-gradient(ellipse at center, black, transparent 90%);
 }
+
+.glass-forest {
+  background: rgba(13, 43, 29, 0.6); 
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(214, 237, 230, 0.08);
+}
+
+.noise-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+  opacity: 0.025; pointer-events: none; z-index: 100;
+}
+
+/* Legacy UI Support */
+.btn-recenter {
+  @apply flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md transition-all hover:scale-110 hover:border-white/50;
+}
+
+.btn-pill-initialize {
+  @apply rounded-full bg-brand-accent px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-bg transition-all hover:-translate-y-0.5 hover:bg-white;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--brand-bg-light); border-radius: 5px; }
