@@ -18,7 +18,7 @@ load_dotenv(ROOT_DIR / ".env")
 RPC_URL = os.getenv("RPC_URL", "http://127.0.0.1:8545")
 MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")
 TAVILY_KEY = os.getenv("TAVILY_API_KEY")
-LLM_URL = "http://127.0.0.1:8090/v1" # Using your existing local LLM
+LLM_URL = "http://127.0.0.1:8090/v1"
 
 # --- Clients ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -42,16 +42,16 @@ class TravelRequest(BaseModel):
 
 @app.post("/process")
 async def process_travel(request: TravelRequest):
-    print(f"\n--- 🎫 Executing Decision Protocol for Job #{request.job_id} ---")
+    print(f"\n--- Executing Decision Protocol for Job #{request.job_id} ---")
     
     try:
-        # 1. Blockchain Verification
         job_data = market_contract.functions.jobs(request.job_id).call()
-        if job_data[4] != 0:
+        if job_data[5] != 0:
             return {"status": "PAYMENT_REQUIRED", "message": "Escrow not found."}
         
-        # 2. Web Search (Live Data)
-        print(f"🌐 Gathering live intelligence for {request.destination}...")
+        print(f" Escrow Verified for Job #{request.job_id}. Proceeding with task...")
+        
+        print(f"Gathering live intelligence for {request.destination}...")
         search_query = f"cheapest flights from {request.origin} to {request.destination} on {request.date}"
         search_response = tavily.search(query=search_query, max_results=5)
         search_results = search_response.get('results', [])
@@ -59,15 +59,13 @@ async def process_travel(request: TravelRequest):
         if not search_results:
             return {"status": "SUCCESS", "result": "No flight options found.", "job_id": request.job_id}
 
-        # 3. Agentic Decision Making
-        print("🧠 Analyzing options and generating Mock Booking...")
+        print("Analyzing options and generating Mock Booking...")
 
         raw_context = "\n".join([
             f"DATA {i}: {r['content'][:500]}... [Source: {r['url']}]" 
             for i, r in enumerate(search_results)
         ])
 
-        # Updated System Prompt with explicit Mock Booking instructions
         system_prompt = (
             "You are the SkyBound Navigator, a specialized travel agent for the AISAAS Marketplace. "
             "Your goal is to analyze flight data and perform a MOCK BOOKING for the user."
@@ -90,7 +88,7 @@ async def process_travel(request: TravelRequest):
         )
 
         agent_output = response.choices[0].message.content
-        print("✅ Decision & Mock Booking finalized.")
+        print("Decision & Mock Booking finalized.")
 
         return {
             "status": "SUCCESS",
@@ -99,7 +97,7 @@ async def process_travel(request: TravelRequest):
         }
 
     except Exception as e:
-        print(f"❌ ERROR: {str(e)}")
+        print(f"ERROR: {str(e)}")
         return {"status": "ERROR", "message": str(e)}
 
     

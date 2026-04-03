@@ -37,18 +37,15 @@ class SecurityRequest(BaseModel):
 
 @app.post("/process")
 async def process_security(request: SecurityRequest):
-    print(f"\n--- 🛡️ Initiating Security Audit for Job #{request.job_id} ---")
+    print(f"\n--- Initiating Security Audit for Job #{request.job_id} ---")
     
     try:
-        # 1. Blockchain Verification (Phase 4 logic)
         job_data = market_contract.functions.jobs(request.job_id).call()
-        if job_data[4] != 0: # 0 = Locked
+        if job_data[5] != 0:
             return {"status": "PAYMENT_REQUIRED", "message": "Audit fee not secured in escrow."}
         
-        print("✅ Payment Verified. Analyzing code snippet for vulnerabilities...")
+        print("Payment Verified. Analyzing code snippet for vulnerabilities...")
 
-        # 2. Agentic Audit Logic
-        # We instruct the LLM to act as a Senior Security Engineer
         system_prompt = (
             "You are the Sentry Auditor, an elite AI specialized in finding security vulnerabilities."
             "\nAnalyze the provided code and generate a formal audit report."
@@ -68,12 +65,12 @@ async def process_security(request: SecurityRequest):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.2, # Low temperature for accurate, non-creative technical analysis
+            temperature=0.2,
             max_tokens=600
         )
 
         audit_report = response.choices[0].message.content
-        print("✅ Audit complete. Sending report to Executive.")
+        print("Audit complete. Sending report to Executive.")
 
         return {
             "status": "SUCCESS",
@@ -82,7 +79,7 @@ async def process_security(request: SecurityRequest):
         }
 
     except Exception as e:
-        print(f"❌ SECURITY ERROR: {str(e)}")
+        print(f"SECURITY ERROR: {str(e)}")
         return {"status": "ERROR", "message": str(e)}
 
 if __name__ == "__main__":

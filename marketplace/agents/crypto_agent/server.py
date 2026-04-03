@@ -20,7 +20,7 @@ MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")
 # Public API for ETH Price (No key required for simple pings)
 PRICE_API = "https://api.coinbase.com/v2/prices/ETH-USD/spot"
 
-LLM_URL = "http://127.0.0.1:8090/v1" # Match the port your LM Studio/Ollama is using
+LLM_URL = "http://127.0.0.1:8090/v1"
 llm_client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
 
 # --- Clients ---
@@ -36,24 +36,21 @@ app = FastAPI(title="Vault-Guard Crypto (Financial Intelligence Agent)")
 
 class CryptoRequest(BaseModel):
     account_to_analyze: str
-    operation: str  # "balance_check", "market_data", "gas_estimate"
+    operation: str
     job_id: int
 
 
 @app.post("/process")
 async def process_crypto(request: CryptoRequest):
-    print(f"\n--- 💎 Executing Financial Intelligence Protocol for Job #{request.job_id} ---")
+    print(f"\n--- Executing Financial Intelligence Protocol for Job #{request.job_id} ---")
     
     try:
-        # 1. Blockchain Verification
         job_data = market_contract.functions.jobs(request.job_id).call()
-        if job_data[4] != 0:
+        if job_data[5] != 0:
             return {"status": "PAYMENT_REQUIRED", "message": "Escrow not found."}
         
-        # 2. Gather Raw Data (Enhanced for Multi-Mode)
         result_data = {}
         
-        # Helper to fetch price
         def get_eth_price():
             try:
                 res = requests.get(PRICE_API).json()
@@ -61,7 +58,6 @@ async def process_crypto(request: CryptoRequest):
             except: 
                 return "Unknown"
 
-        # Helper to fetch balance
         def get_bal(addr):
             bal_wei = w3.eth.get_balance(w3.to_checksum_address(addr))
             return str(w3.from_wei(bal_wei, 'ether'))
@@ -80,8 +76,8 @@ async def process_crypto(request: CryptoRequest):
         elif request.operation == "gas_estimate":
             result_data['current_gas_gwei'] = str(w3.from_wei(w3.eth.gas_price, 'gwei'))
 
-        # 3. LLM Reasoning & Formatting (Updated for Multi-Data support)
-        print("🧠 Resource Auditor is parsing telemetry...")
+        # LLM Reasoning & Formatting {for Multi-Data support)
+        print("Resource Auditor is parsing telemetry...")
         
         system_prompt = (
             "You are the AISAAS Resource Auditor. Your task is to parse raw system telemetry into a technical status log. "
@@ -92,8 +88,6 @@ async def process_crypto(request: CryptoRequest):
             "\n- Output ONLY the requested sections. No pre-amble."
         )
         
-        # We provide TWO examples now: one simple, one complex. 
-        # This teaches the LLM to adapt based on what it sees.
         example_user_1 = "SIMULATION DATA PACKET: Operation: balance_check | Data: {'balance_eth': '100.0'} | Target: 0x123"
         example_assistant_1 = (
             "1. TECHNICAL METRICS: Address 0x123... | Current Balance: 100.0 Units\n"
@@ -130,7 +124,7 @@ async def process_crypto(request: CryptoRequest):
         )
 
         final_report = response.choices[0].message.content
-        print("✅ Financial report finalized.")
+        print("Financial report finalized.")
 
         return {
             "status": "SUCCESS",
@@ -139,7 +133,7 @@ async def process_crypto(request: CryptoRequest):
         }
 
     except Exception as e:
-        print(f"❌ CRYPTO ERROR: {str(e)}")
+        print(f"CRYPTO ERROR: {str(e)}")
         return {"status": "ERROR", "message": str(e)}
 
 if __name__ == "__main__":

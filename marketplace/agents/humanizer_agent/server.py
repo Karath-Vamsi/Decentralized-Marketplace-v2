@@ -29,7 +29,7 @@ class HumanizerRequest(BaseModel):
     text: str
     tone: str
     intensity: int
-    job_id: int # Required for payment verification
+    job_id: int
 
 @app.post("/process")
 async def process_humanizer(request: HumanizerRequest):
@@ -37,12 +37,11 @@ async def process_humanizer(request: HumanizerRequest):
     
     try:
         job_data = market_contract.functions.jobs(request.job_id).call()
-        if job_data[4] != 0: # 0 = Locked
+        if job_data[5] != 0:
             return {"status": "PAYMENT_REQUIRED", "message": "No locked escrow found."}
         
-        print(f" ✅ Verified. Humanizing text with {request.tone} tone...")
+        print(f" Verified. Humanizing text with {request.tone} tone...")
         
-        # Mock Humanization Logic
         rewritten = f"[HUMANIZED - {request.tone.upper()}]: {request.text}"
         
         return {
