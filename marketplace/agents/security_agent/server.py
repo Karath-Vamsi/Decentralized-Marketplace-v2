@@ -16,11 +16,19 @@ load_dotenv(ROOT_DIR / ".env")
 # --- Config ---
 RPC_URL = os.getenv("RPC_URL", "http://127.0.0.1:8545")
 MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")
-LLM_URL = "http://127.0.0.1:8090/v1" 
+
+# LLM config
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+
 
 # --- Clients ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
-llm_client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=GROQ_API_KEY
+)
 
 # --- Load ABI ---
 ABI_PATH = MARKETPLACE_DIR / "artifacts" / "contracts" / "AISAAS_Market.sol" / "AISAAS_Market.json"
@@ -59,8 +67,8 @@ async def process_security(request: SecurityRequest):
         
         user_prompt = f"Audit Request for Code Snippet:\n\n{request.code_to_audit}"
 
-        response = llm_client.chat.completions.create(
-            model="local-model",
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}

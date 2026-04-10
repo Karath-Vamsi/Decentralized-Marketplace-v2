@@ -20,11 +20,17 @@ MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")
 # Public API for ETH Price (No key required for simple pings)
 PRICE_API = "https://api.coinbase.com/v2/prices/ETH-USD/spot"
 
-LLM_URL = "http://127.0.0.1:8090/v1"
-llm_client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
+# LLM config
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
 
 # --- Clients ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=GROQ_API_KEY
+)
 
 # --- Load ABI ---
 ABI_PATH = MARKETPLACE_DIR / "artifacts" / "contracts" / "AISAAS_Market.sol" / "AISAAS_Market.json"
@@ -110,8 +116,8 @@ async def process_crypto(request: CryptoRequest):
             f"Instructions: Generate the log entry including all provided metrics."
         )
 
-        response = llm_client.chat.completions.create(
-            model="local-model",
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": example_user_1},

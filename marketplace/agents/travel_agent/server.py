@@ -18,12 +18,17 @@ load_dotenv(ROOT_DIR / ".env")
 RPC_URL = os.getenv("RPC_URL", "http://127.0.0.1:8545")
 MARKET_ADDR = os.getenv("MARKETPLACE_ADDRESS")
 TAVILY_KEY = os.getenv("TAVILY_API_KEY")
-LLM_URL = "http://127.0.0.1:8090/v1"
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 # --- Clients ---
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 tavily = TavilyClient(api_key=TAVILY_KEY)
-llm_client = OpenAI(base_url=LLM_URL, api_key="sk-no-key-required")
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=GROQ_API_KEY
+)
 
 # --- Load ABI ---
 ABI_PATH = MARKETPLACE_DIR / "artifacts" / "contracts" / "AISAAS_Market.sol" / "AISAAS_Market.json"
@@ -77,8 +82,8 @@ async def process_travel(request: TravelRequest):
             "Funds are secured in AISAAS Escrow and will be released upon user approval.'"
         )
 
-        response = llm_client.chat.completions.create(
-            model="local-model",
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Finalize decision for {request.origin} to {request.destination} on {request.date}:\n{raw_context}"}
