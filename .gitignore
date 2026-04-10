@@ -1,6 +1,7 @@
 # Ignore the local vector database (it gets huge)
 sovereign_executive/chroma_db/
-sovereign_executive/knowledge_base/
+sovereign_executive/knowledge_base/documents
+sovereign_executive/knowledge_base/logs
 sovereign_executive/knowledge_base/identity.txt
 
 # Ignore the actual LLM engine files
