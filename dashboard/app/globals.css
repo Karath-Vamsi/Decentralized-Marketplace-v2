@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* MASTER BRAND MAPPING - Use these in your components (e.g., bg-brand-bg) */
+  /* MASTER BRAND MAPPING */
   --color-brand-bg: var(--brand-bg);
   --color-brand-bg-light: var(--brand-bg-light);
   --color-brand-bg-dark: var(--brand-bg-dark);
@@ -39,18 +39,16 @@
 
 :root {
   /* ============================================================
-     THE MASTER CONTROL PANEL (v4.0 - AISAAS Final)
-     Change these Hex codes to change the entire UI theme.
+     THE MASTER CONTROL PANEL (v4.1 - Vibrant Update)
      ============================================================ */
-  --brand-bg: #0D2B1D;       /* Deep Forest */
-  --brand-bg-light: #16422C; /* Luminous Highlight */
-  --brand-bg-dark: #05140D;  /* Deep Shadows */
-  --brand-text: #D6EDE6;     /* Frozen Water */
-  --brand-accent: #F7F5F2;   /* Parchment */
-  --brand-ash: #A3B8AE;      /* Ash Grey */
+  --brand-bg: #0D2B1D;       
+  --brand-bg-light: #16422C; 
+  --brand-bg-dark: #05140D;  
+  --brand-text: #C3FFD8;     /* High-Visibility Mint (More Green) */
+  --brand-accent: #F7F5F2;   
+  --brand-ash: #82B39B;      /* Saturated Forest Mist */
 
-  /* SHADCN LINKAGE - DO NOT CHANGE THESE MANUALLY, 
-     THEY ARE LINKED TO YOUR BRAND ABOVE */
+  /* SHADCN LINKAGE */
   --background: var(--brand-bg);
   --foreground: var(--brand-text);
   --card: #081e14;
@@ -67,8 +65,8 @@
   --accent-foreground: var(--brand-accent);
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
-  --border: rgba(214, 237, 230, 0.1);
-  --input: rgba(214, 237, 230, 0.1);
+  --border: rgba(195, 255, 216, 0.15); /* Tinted with Mint */
+  --input: rgba(195, 255, 216, 0.15);
   --ring: var(--brand-accent);
   --radius: 0.75rem;
 }
@@ -76,6 +74,9 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  html {
+    font-size: 110%; /* Global Font Bump */
   }
   body {
     @apply bg-background text-foreground;
@@ -96,16 +97,16 @@
 .linear-grid {
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background-image: 
-    linear-gradient(to right, rgba(214, 237, 230, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(214, 237, 230, 0.03) 1px, transparent 1px);
+    linear-gradient(to right, rgba(195, 255, 216, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(195, 255, 216, 0.04) 1px, transparent 1px);
   background-size: 50px 50px;
   mask-image: radial-gradient(ellipse at center, black, transparent 90%);
 }
 
 .glass-forest {
-  background: rgba(13, 43, 29, 0.6); 
-  backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(214, 237, 230, 0.08);
+  background: rgba(13, 43, 29, 0.65); 
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(195, 255, 216, 0.12);
 }
 
 .noise-overlay {
@@ -114,16 +115,8 @@
   opacity: 0.025; pointer-events: none; z-index: 100;
 }
 
-/* Legacy UI Support */
-.btn-recenter {
-  @apply flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md transition-all hover:scale-110 hover:border-white/50;
-}
-
 .btn-pill-initialize {
-  @apply rounded-full bg-brand-accent px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-bg transition-all hover:-translate-y-0.5 hover:bg-white;
+  @apply rounded-full bg-brand-accent px-8 py-3 text-xs font-black uppercase tracking-[0.2em] text-brand-bg transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_0_20px_rgba(195,255,216,0.3)];
 }
 
-/* Scrollbar Customization */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--brand-bg-light); border-radius: 5px; }
+::-webkit-scrollbar-thumb { background: var(--brand-ash); border-radius: 5px; }
